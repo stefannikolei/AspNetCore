@@ -95,13 +95,21 @@ namespace Microsoft.AspNetCore.Components.Server.Circuits
 
         public IDispatcher Dispatcher { get; }
 
-        public Task<IEnumerable<string>> PrerenderComponentAsync(Type componentType, ParameterCollection parameters)
+        public Task<RenderedHtmlResult> PrerenderComponentAsync(Type componentType, ParameterCollection parameters)
         {
             return Dispatcher.InvokeAsync(async () =>
             {
                 var result = await Renderer.RenderComponentAsync(componentType, parameters);
+
+                await OnCircuitOpenedAsync(CancellationToken.None);
+
                 return result;
             });
+        }
+
+        internal void Initialized()
+        {
+            _initialized = true;
         }
 
         public async Task InitializeAsync(CancellationToken cancellationToken)
@@ -122,8 +130,11 @@ namespace Microsoft.AspNetCore.Components.Server.Circuits
                     // processing incoming JSInterop calls or similar.
                     for (var i = 0; i < Descriptors.Count; i++)
                     {
-                        var (componentType, domElementSelector) = Descriptors[i];
-                        await Renderer.AddComponentAsync(componentType, domElementSelector);
+                        var (componentType, domElementSelector, prerendered) = Descriptors[i];
+                        if (!prerendered)
+                        {
+                            await Renderer.AddComponentAsync(componentType, domElementSelector);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -251,7 +262,7 @@ namespace Microsoft.AspNetCore.Components.Server.Circuits
             }));
 
             _scope.Dispose();
-            Renderer.Dispose();
+            await Renderer.Invoke(() => Renderer.Dispose());
         }
 
         private void AssertInitialized()

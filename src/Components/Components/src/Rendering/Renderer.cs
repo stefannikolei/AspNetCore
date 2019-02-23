@@ -336,7 +336,7 @@ namespace Microsoft.AspNetCore.Components.Rendering
                     // The pendingTasks collection is only used during prerendering to track quiescence,
                     // so will be null at other times.
                     _pendingTasks?.Add(handledErrorTask);
-                    
+
                     break;
             }
         }
@@ -442,7 +442,7 @@ namespace Microsoft.AspNetCore.Components.Rendering
 
                 // Fire off the execution of OnAfterRenderAsync, but don't wait for it
                 // if there is async work to be done.
-                _ = InvokeRenderCompletedCalls(batch.UpdatedComponents);
+                _ = InvokeRenderCompletedCalls(batch.UpdatedComponents, updateDisplayTask);
             }
             finally
             {
@@ -452,8 +452,34 @@ namespace Microsoft.AspNetCore.Components.Rendering
             }
         }
 
-        private Task InvokeRenderCompletedCalls(ArrayRange<RenderTreeDiff> updatedComponents)
+        private Task InvokeRenderCompletedCalls(ArrayRange<RenderTreeDiff> updatedComponents, Task updateDisplayTask)
         {
+            if (updateDisplayTask.IsCanceled)
+            {
+                // The display update was cancelled (maybe due to a timeout on the components server-side case or due
+                // to the renderer being disposed)
+                return Task.CompletedTask;
+            }
+            if (updateDisplayTask.IsFaulted)
+            {
+                // The display update failed so we don't care any more about running on render completed
+                // fallbacks as the entire rendering process is going to be torn down.
+                HandleException(updateDisplayTask.Exception);
+                return Task.CompletedTask;
+            }
+
+            if (!updateDisplayTask.IsCompleted)
+            {
+                var updatedComponentsId = new int[updatedComponents.Count];
+                var updatedComponentsArray = updatedComponents.Array;
+                for (int i = 0; i < updatedComponentsId.Length; i++)
+                {
+                    updatedComponentsId[i] = updatedComponentsArray[i].ComponentId;
+                }
+
+                return InvokeAfterUpdateDisplayCompleted(updateDisplayTask, updatedComponentsId);
+            }
+
             List<Task> batch = null;
             var array = updatedComponents.Array;
             for (var i = 0; i < updatedComponents.Count; i++)
@@ -461,9 +487,60 @@ namespace Microsoft.AspNetCore.Components.Rendering
                 var componentState = GetOptionalComponentState(array[i].ComponentId);
                 if (componentState != null)
                 {
+                    ProcessComponent(componentState, batch);
+                }
+            }
+
+            return batch != null ?
+                Task.WhenAll(batch) :
+                Task.CompletedTask;
+
+            async Task InvokeAfterUpdateDisplayCompleted(Task updateDisplayTask, int[] updatedComponents)
+            {
+                try
+                {
+                    await updateDisplayTask;
+                }
+                catch when (updateDisplayTask.IsCanceled)
+                {
+                    return;
+                }
+                catch when (updateDisplayTask.IsFaulted)
+                {
+                    HandleException(updateDisplayTask.Exception);
+                    return;
+                }
+
+                List<Task> batch = null;
+                var array = updatedComponents;
+                for (var i = 0; i < updatedComponents.Length; i++)
+                {
+                    var componentState = GetOptionalComponentState(array[i]);
+                    if (componentState != null)
+                    {
+                        ProcessComponent(componentState, batch);
+                    }
+                }
+
+                var result = batch != null ?
+                    Task.WhenAll(batch) :
+                    Task.CompletedTask;
+
+                await result;
+            }
+
+            void ProcessComponent(ComponentState state, List<Task> batch)
+            {
+                if (state != null)
+                {
                     // The component might be rendered and disposed in the same batch (if its parent
                     // was rendered later in the batch, and removed the child from the tree).
-                    var task = componentState.NotifyRenderCompletedAsync();
+                    // This can also happen between batches if the UI takes some time to update and within
+                    // that time the component gets removed out of the tree because the parent chose not to
+                    // render it in a later batch.
+                    // In any of the two cases mentioned happens, OnAfterRenderAsync won't run but that is
+                    // ok.
+                    var task = state.NotifyRenderCompletedAsync();
 
                     // We want to avoid allocations per rendering. Avoid allocating a state machine or an accumulator
                     // unless we absolutely have to.
@@ -472,12 +549,12 @@ namespace Microsoft.AspNetCore.Components.Rendering
                         if (task.Status == TaskStatus.RanToCompletion || task.Status == TaskStatus.Canceled)
                         {
                             // Nothing to do here.
-                            continue;
+                            return;
                         }
                         else if (task.Status == TaskStatus.Faulted)
                         {
                             HandleException(task.Exception);
-                            continue;
+                            return;
                         }
                     }
 
@@ -487,10 +564,6 @@ namespace Microsoft.AspNetCore.Components.Rendering
                     batch.Add(GetErrorHandledTask(task));
                 }
             }
-
-            return batch != null ?
-                Task.WhenAll(batch) :
-                Task.CompletedTask;
         }
 
         private void RenderInExistingBatch(RenderQueueEntry renderQueueEntry)
