@@ -13,7 +13,6 @@ namespace CorsWebSite
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc(ConfigureMvcOptions)
-                .AddNewtonsoftJson()
                 .SetCompatibilityVersion(CompatibilityVersion.Latest);
             services.Configure<CorsOptions>(options =>
             {
