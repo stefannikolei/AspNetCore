@@ -12,7 +12,7 @@ Some projects in this repository (like SinglaR Java Client) require JDK installa
 ## Building Templates
 1. Run `. .\activate.ps1` if you haven't already.
 
-2. Run `git submodule update` in the repository root
+2. Run `git submodule update` in the repository root if you haven't already.
 3. Run `build.cmd -all -pack` in the repository root to build all of the dependencies.
 4. Run `build.cmd` in this directory will produce NuGet packages for each class of template in the artifacts directory.
 5. Because the templates build against the version of `Microsoft.AspNetCore.App` that was built during step 2 it is NOT advised that you install templates created on your local machine via `dotnet new -i [nupkgPath]`. Instead, use the `Run-[Template]-Locally.ps1` scripts in the script folder. These scripts do `dotnet new -i` with your packages, but also apply a series of fixes and tweeks to the created template which keep the fact that you don't have a production `Microsoft.AspNetCore.App` from interfering.
