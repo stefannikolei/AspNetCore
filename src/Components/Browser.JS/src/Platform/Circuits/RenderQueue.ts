@@ -98,8 +98,7 @@ export default class RenderQueue {
     for (let i = 0; i < 3; i++) {
       try {
         await connection.send('OnRenderCompleted', batchId, null);
-      }
-      catch {
+      } catch {
         this.logger.log(LogLevel.Warning, `Failed to deliver completion notification for render '${batchId}' on attempt '${i}'.`);
       }
     }

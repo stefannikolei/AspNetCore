@@ -102,7 +102,7 @@ export class BrowserRenderer {
           if (element instanceof Element) {
             this.applyAttribute(batch, element, frame);
           } else {
-            throw new Error(`Cannot set attribute on non-element child`);
+            throw new Error('Cannot set attribute on non-element child');
           }
           break;
         }
@@ -119,7 +119,7 @@ export class BrowserRenderer {
               element.removeAttribute(attributeName);
             }
           } else {
-            throw new Error(`Cannot remove attribute from non-element child`);
+            throw new Error('Cannot remove attribute from non-element child');
           }
           break;
         }
@@ -131,7 +131,7 @@ export class BrowserRenderer {
           if (textNode instanceof Text) {
             textNode.textContent = frameReader.textContent(frame);
           } else {
-            throw new Error(`Cannot set text content on non-text child`);
+            throw new Error('Cannot set text content on non-text child');
           }
           break;
         }
@@ -387,7 +387,7 @@ function raiseEvent(event: Event, browserRendererId: number, eventHandlerId: num
   const eventDescriptor = {
     browserRendererId,
     eventHandlerId,
-    eventArgsType: eventArgs.type
+    eventArgsType: eventArgs.type,
   };
 
   return DotNet.invokeMethodAsync(
@@ -405,11 +405,11 @@ function clearElement(element: Element) {
 }
 
 function clearBetween(start: Node, end: Node) {
-  let parent = start.parentNode!;
-  let logicalParent = getLogicalParent(start as any as LogicalElement)!;
-  let children = getLogicalChildrenArray(logicalParent);
-  let removeStart = children.indexOf(start as any as LogicalElement) + 1;
-  let endIndex = children.indexOf(end as any as LogicalElement);
+  const parent = start.parentNode!;
+  const logicalParent = getLogicalParent(start as any as LogicalElement)!;
+  const children = getLogicalChildrenArray(logicalParent);
+  const removeStart = children.indexOf(start as any as LogicalElement) + 1;
+  const endIndex = children.indexOf(end as any as LogicalElement);
   for (let i = removeStart; i < endIndex; i++) {
     removeLogicalChild(logicalParent, removeStart);
   }

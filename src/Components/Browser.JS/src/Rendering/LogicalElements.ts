@@ -1,4 +1,4 @@
-﻿/*
+/*
   A LogicalElement plays the same role as an Element instance from the point of view of the
   API consumer. Inserting and removing logical elements updates the browser DOM just the same.
 

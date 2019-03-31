@@ -81,7 +81,7 @@ async function initializeConnection(circuitHandlers: CircuitHandler[], logger: I
 
   connection.on('JS.BeginInvokeJS', DotNet.jsCallDispatcher.beginInvokeJSFromDotNet);
   connection.on('JS.RenderBatch', (browserRendererId: number, renderId: number, batchData: Uint8Array) => {
-    logger.log(LogLevel.Information, `Received render batch for ${browserRendererId} with id ${renderId} and ${batchData.byteLength} bytes.`)
+    logger.log(LogLevel.Information, `Received render batch for ${browserRendererId} with id ${renderId} and ${batchData.byteLength} bytes.`);
 
     const queue = RenderQueue.getOrCreateQueue(browserRendererId, logger);
 
@@ -94,7 +94,7 @@ async function initializeConnection(circuitHandlers: CircuitHandler[], logger: I
   });
 
   connection.onclose(error => circuitHandlers.forEach(h => h.onConnectionDown && h.onConnectionDown(error)));
-  connection.on('JS.Error', error => unhandledError(connection, error,logger)); // eslint-disable-line @typescript-eslint/no-use-before-define
+  connection.on('JS.Error', error => unhandledError(connection, error, logger)); // eslint-disable-line @typescript-eslint/no-use-before-define
 
   window['Blazor']._internal.forceCloseConnection = () => connection.stop();
 
@@ -107,7 +107,7 @@ async function initializeConnection(circuitHandlers: CircuitHandler[], logger: I
   DotNet.attachDispatcher({
     beginInvokeDotNetFromJS: (callId, assemblyName, methodIdentifier, dotNetObjectId, argsJson) => {
       connection.send('BeginInvokeDotNetFromJS', callId ? callId.toString() : null, assemblyName, methodIdentifier, dotNetObjectId || 0, argsJson);
-    }
+    },
   });
 
   return connection;
