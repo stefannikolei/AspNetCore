@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Matching;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.AspNetCore.Mvc.Routing
 {
@@ -42,8 +43,13 @@ namespace Microsoft.AspNetCore.Mvc.Routing
 
             for (var i = 0; i < endpoints.Count; i++)
             {
-                var metadata = endpoints[i].Metadata.GetMetadata<DynamicControllerMetadata>();
-                if (metadata != null)
+                if (endpoints[i].Metadata.GetMetadata<DynamicControllerMetadata>() != null)
+                {
+                    // Found a dynamic controller endpoint
+                    return true;
+                }
+
+                if (endpoints[i].Metadata.GetMetadata<DynamicControllerRouteValueTransformerMetadata>() != null)
                 {
                     // Found a dynamic controller endpoint
                     return true;
@@ -53,7 +59,7 @@ namespace Microsoft.AspNetCore.Mvc.Routing
             return false;
         }
 
-        public Task ApplyAsync(HttpContext httpContext, EndpointSelectorContext context, CandidateSet candidates)
+        public async Task ApplyAsync(HttpContext httpContext, EndpointSelectorContext context, CandidateSet candidates)
         {
             if (httpContext == null)
             {
@@ -81,40 +87,58 @@ namespace Microsoft.AspNetCore.Mvc.Routing
                 }
 
                 var endpoint = candidates[i].Endpoint;
+                var originalValues = candidates[i].Values;
 
-                var metadata = endpoint.Metadata.GetMetadata<DynamicControllerMetadata>();
-                if (metadata == null)
+                RouteValueDictionary dynamicValues = null;
+
+                // We don't expext both of these to be provided, and they are internal so there's
+                // no realistic way this could happen.
+                var dynamicControllerMetadata = endpoint.Metadata.GetMetadata<DynamicControllerMetadata>();
+                var transformerMetadata = endpoint.Metadata.GetMetadata<DynamicControllerRouteValueTransformerMetadata>();
+                if (dynamicControllerMetadata != null)
                 {
+                    dynamicValues = dynamicControllerMetadata.Values;
+                }
+                else if (transformerMetadata != null)
+                {
+                    var transformer = (DynamicRouteValueTransformer)httpContext.RequestServices.GetRequiredService(transformerMetadata.SelectorType);
+                    dynamicValues = await transformer.TransformAsync(httpContext, originalValues);
+                }
+
+                if (dynamicValues == null)
+                {
+                    candidates.ReplaceEndpoint(i, null, null);
                     continue;
                 }
 
-                var matchedValues = candidates[i].Values;
-                var endpoints = _selector.SelectEndpoints(metadata.Values);
-                if (endpoints.Count == 0)
+                var endpoints = _selector.SelectEndpoints(dynamicValues);
+                if (endpoints.Count == 0 && dynamicControllerMetadata != null)
                 {
-                    // If there's no match this is a configuration error. We can't really check
+                    // If there's no match for a fallback is a configuration error. We can't really check
                     // during startup that the action you configured exists.
                     throw new InvalidOperationException(
                         "Cannot find the fallback endpoint specified by route values: " + 
-                        "{ " + string.Join(", ", metadata.Values.Select(kvp => $"{kvp.Key}: {kvp.Value}")) + " }.");
+                        "{ " + string.Join(", ", dynamicValues.Select(kvp => $"{kvp.Key}: {kvp.Value}")) + " }.");
+                }
+                else if (endpoints.Count == 0)
+                {
+                    candidates.ReplaceEndpoint(i, null, null);
+                    continue;
                 }
 
-                var replacement = endpoints[0];
-                
                 // We need to provide the route values associated with this endpoint, so that features
                 // like URL generation work.
-                var values = new RouteValueDictionary(metadata.Values);
+                var values = new RouteValueDictionary(dynamicValues);
 
                 // Include values that were matched by the fallback route.
-                foreach (var kvp in matchedValues)
+                foreach (var kvp in originalValues)
                 {
                     values.TryAdd(kvp.Key, kvp.Value);
                 }
 
+                var replacement = _selector.SelectBestEndpoint(httpContext, values, endpoints);
                 candidates.ReplaceEndpoint(i, replacement, values);
             }
-
-            return Task.CompletedTask;
         }
     }
 }

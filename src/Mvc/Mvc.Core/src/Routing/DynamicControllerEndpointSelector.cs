@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Routing;
 
@@ -11,17 +12,25 @@ namespace Microsoft.AspNetCore.Mvc.Routing
 {
     internal class DynamicControllerEndpointSelector : IDisposable
     {
+        private readonly ActionSelector _actionSelector;
         private readonly ControllerActionEndpointDataSource _dataSource;
         private readonly DataSourceDependentCache<ActionSelectionTable<RouteEndpoint>> _cache;
 
-        public DynamicControllerEndpointSelector(ControllerActionEndpointDataSource dataSource)
+        public DynamicControllerEndpointSelector(ControllerActionEndpointDataSource dataSource, ActionSelector actionSelector)
         {
             if (dataSource == null)
             {
                 throw new ArgumentNullException(nameof(dataSource));
             }
 
+            if (actionSelector == null)
+            {
+                throw new ArgumentNullException(nameof(actionSelector));
+            }
+
             _dataSource = dataSource;
+            _actionSelector = actionSelector;
+
             _cache = new DataSourceDependentCache<ActionSelectionTable<RouteEndpoint>>(dataSource, Initialize);
         }
 
@@ -37,6 +46,41 @@ namespace Microsoft.AspNetCore.Mvc.Routing
             var table = Table;
             var matches = table.Select(values);
             return matches;
+        }
+
+        public Endpoint SelectBestEndpoint(HttpContext httpContext, RouteValueDictionary values, IReadOnlyList<RouteEndpoint> endpoints)
+        {
+            if (endpoints == null)
+            {
+                throw new ArgumentNullException(nameof(endpoints));
+            }
+
+            var context = new RouteContext(httpContext);
+            context.RouteData = new RouteData(values);
+
+            var actions = new ActionDescriptor[endpoints.Count];
+            for (var i = 0; i < endpoints.Count; i++)
+            {
+                actions[i] = endpoints[i].Metadata.GetMetadata<ActionDescriptor>();
+            }
+
+            // SelectBestCandidate throws for ambiguities so we don't have to handle that here.
+            var action = _actionSelector.SelectBestCandidate(context, actions);
+            if (action == null)
+            {
+                return null;
+            }
+
+            for (var i = 0; i <actions.Length; i++)
+            {
+                if (object.ReferenceEquals(action, actions[i]))
+                {
+                    return endpoints[i];
+                }
+            }
+
+            // This should never happen. We need to do *something* here for the code to compile, so throwing.
+            throw new InvalidOperationException("ActionSelector returned an action that was not a candidate.");
         }
 
         private static ActionSelectionTable<RouteEndpoint> Initialize(IReadOnlyList<Endpoint> endpoints)
