@@ -91,7 +91,7 @@ export class ComponentEntry {
 
 export default class CircuitRegistry {
 
-  public static discoverPrerenderedCircuits(document: Document, logger: ILogger): ComponentEntry [] {
+  public static discoverPrerenderedCircuits(document: Document, logger: ILogger): ComponentEntry[] {
     const commentPairs = CircuitRegistry.resolveCommentPairs(document);
     const circuits: ComponentEntry[] = [];
 
@@ -116,9 +116,9 @@ export default class CircuitRegistry {
       uriHelperFunctions.getBaseURI()
     );
 
-    if(result){
-      return new ComponentEntry(-1, result, -1, {valid: false });
-    }else{
+    if (result) {
+      return new ComponentEntry(-1, result, -1, { valid: false });
+    } else {
       return undefined;
     }
   }
@@ -153,9 +153,9 @@ export default class CircuitRegistry {
 
       if (startComponent.isWellFormed) {
         const endComponent = CircuitRegistry.getComponentEndComment(startComponent, children, i + 1, childrenLength);
-        if(startComponent.isWellFormed && endComponent.isWellFormed){
+        if (startComponent.isWellFormed && endComponent.isWellFormed) {
           result.push({ valid: startComponent.isWellFormed && endComponent.isWellFormed, start: startComponent, end: endComponent });
-        }else{
+        } else {
           result.push({ valid: false, start: startComponent, end: endComponent });
         }
         i = endComponent.index + 1;
@@ -174,15 +174,15 @@ export default class CircuitRegistry {
     }
 
     if (node.textContent) {
-      const componentStartComment = /\W+M.A.C.Component:[^{]*(?<json>.*)$/;
+      const componentStartComment = /\W+M.A.C.Component:[^{]*(.*)$/;
 
       const definition = componentStartComment.exec(node.textContent);
-      const json = definition && definition['groups'] && definition['groups'].json;
+      const json = definition && definition[1];
       if (json) {
         try {
           const { componentId, circuitId, rendererId } = JSON.parse(json);
           const allComponents = !!componentId && !!circuitId && !!rendererId;
-          if(allComponents){
+          if (allComponents) {
             return {
               isWellFormed: true,
               kind: ComponentCommentKind.Start,
@@ -191,7 +191,7 @@ export default class CircuitRegistry {
               rendererId: Number.parseInt(rendererId),
               componentId: Number.parseInt(componentId),
             };
-          }else{
+          } else {
             return {
               isWellFormed: false,
               kind: ComponentCommentKind.Start,
@@ -220,10 +220,10 @@ export default class CircuitRegistry {
         continue;
       }
 
-      const componentEndComment = /\W+M.A.C.Component:\W+(?<componentId>\d+)\W+$/;
+      const componentEndComment = /\W+M.A.C.Component:\W+(\d+)\W+$/;
 
       const definition = componentEndComment.exec(node.textContent);
-      const rawComponentId = definition && definition['groups'] && definition['groups'].componentId;
+      const rawComponentId = definition && definition[1];
       if (!rawComponentId) {
         continue;
       }
