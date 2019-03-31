@@ -12,7 +12,7 @@ module.exports = {
   rules: {
     // Place to specify ESLint rules. Can be used to overwrite rules specified from the extended configs
     // e.g. "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/indent": "off",
+    "@typescript-eslint/indent": ["error", 2],
     "no-var": "error",
     "prefer-const": "error",
     "quotes": ["error", "single", { "avoidEscape": true }],
@@ -20,7 +20,18 @@ module.exports = {
     "semi-style": ["error", "last"],
     "semi-spacing": ["error", { "after": true }],
     "spaced-comment": ["error", "always"],
-    "unicode-bom": ["error", "never"]
+    "unicode-bom": ["error", "never"],
+    "brace-style": ["error", "1tbs"],
+    "comma-dangle": ["error", {
+      "arrays": "always-multiline",
+      "objects": "always-multiline",
+      "imports": "always-multiline",
+      "exports": "always-multiline",
+      "functions": "ignore"
+    }],
+    "comma-style": ["error", "last"],
+    "comma-spacing": ["error", { "after": true }],
+    "no-trailing-spaces": ["error"]
   },
   globals: {
     DotNet: "readonly"
