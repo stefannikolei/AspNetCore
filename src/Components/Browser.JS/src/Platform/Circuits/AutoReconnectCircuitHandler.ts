@@ -4,10 +4,10 @@ import { DefaultReconnectDisplay } from './DefaultReconnectDisplay';
 import { ReconnectDisplay } from './ReconnectDisplay';
 import { ILogger, LogLevel } from '../Logging/ILogger';
 export class AutoReconnectCircuitHandler implements CircuitHandler {
-  private static readonly MaxRetries = 5;
-  private static readonly RetryInterval = 3000;
+  public static readonly MaxRetries = 5;
+  public static readonly RetryInterval = 3000;
   public static readonly DialogId = 'components-reconnect-modal';
-  private reconnectDisplay: ReconnectDisplay;
+  public reconnectDisplay: ReconnectDisplay;
   public logger: ILogger;
 
   public constructor(logger: ILogger) {
