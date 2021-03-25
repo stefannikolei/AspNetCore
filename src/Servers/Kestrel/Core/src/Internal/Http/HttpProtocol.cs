@@ -906,7 +906,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http
             return true;
         }
 
-        public void ProduceContinue()
+        public async ValueTask ProduceContinueAsync()
         {
             if (HasResponseStarted)
             {
@@ -917,7 +917,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http
                 ((IHeaderDictionary)HttpRequestHeaders).TryGetValue(HeaderNames.Expect, out var expect) &&
                 (expect.FirstOrDefault() ?? "").Equals("100-continue", StringComparison.OrdinalIgnoreCase))
             {
-                Output.Write100ContinueAsync().GetAwaiter().GetResult();
+                await Output.Write100ContinueAsync();
             }
         }
 
